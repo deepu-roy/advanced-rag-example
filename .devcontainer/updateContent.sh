@@ -17,9 +17,23 @@
 set -uo pipefail
 
 export KMP_DUPLICATE_LIB_OK=TRUE
+# A Codespace has ~32GB of disk; a full pip cache of torch wheels alone can eat
+# several GB of it for no benefit, since this only ever installs once.
+export PIP_NO_CACHE_DIR=1
 
 echo "==> Installing advanced-rag-example in editable mode"
 pip install --quiet --upgrade pip
+
+# sentence-transformers depends on torch, and torch's default PyPI wheel for
+# linux/x86_64 is the CUDA build: ~5GB of nvidia_* CUDA runtime packages that a
+# CPU-only Codespace can never use, and which overflow the disk ("No space left
+# on device"). Install the CPU-only wheel (~200MB) first so the editable install
+# below sees torch as already satisfied.
+pip install --quiet torch --index-url https://download.pytorch.org/whl/cpu || {
+    echo "!! CPU-only torch wheel unavailable for this platform — falling back to"
+    echo "   the default PyPI wheel. This needs several GB more disk."
+}
+
 pip install --quiet -e ".[dev]"
 
 echo "==> Starting Ollama and pulling the default model (best-effort)"
