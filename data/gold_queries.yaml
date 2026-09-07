@@ -1,0 +1,110 @@
+# Gold query set for evaluating each lab's retrieve() against the corpus.
+#
+# - `relevant` lists the document id(s) (see data/corpus/*.md `id:` field)
+#   that answer the query. Relevance is judged at the document level (see
+#   ragkit/evaluate.py) so it doesn't depend on exact chunk boundaries.
+# - `teaches` names the pipeline stage this query is designed to exercise,
+#   which is what ragkit.evaluate.ScoreCard.by_teaches() groups on. Every
+#   query below was checked against the actual reference pipelines (see
+#   docs/FACILITATOR.md) rather than assumed — some are queries where the
+#   named stage measurably fixes a wrong or poorly-ranked baseline answer;
+#   others are queries the baseline already gets right, kept so later
+#   stages are shown not to regress a case that didn't need fixing. Both
+#   kinds are realistic: not every technique changes every query, and a
+#   lab that only ever shows dramatic wins would be teaching a fairy tale.
+#     lab1  - a "control" query: even the naive baseline should find this
+#     lab2  - vocabulary mismatch or a multi-hop question
+#     lab3  - an exact error-code identifier, disambiguated between three
+#             near-identical subsystem reference documents
+#     lab4  - a near-duplicate-document family where reranking's job is
+#             precision, not recall — watch MRR/nDCG for this category,
+#             not Recall@5 (the right doc is already in the top-5 pool)
+
+- query: "What is the bereavement leave policy?"
+  relevant: [hr-leave-bereavement]
+  teaches: lab1
+
+- query: "What is our policy on gifts from vendors?"
+  relevant: [hr-code-of-conduct]
+  teaches: lab1
+
+- query: "How many sick days do employees get per year?"
+  relevant: [hr-leave-sick]
+  teaches: lab1
+
+- query: "What's the difference between the Gold and Silver SLA tiers?"
+  relevant: [product-sla-tiers]
+  teaches: lab1
+
+- query: "What is the warehouse management system used for?"
+  relevant: [product-wms-overview]
+  teaches: lab1
+
+- query: "What are the steps in the incident postmortem process?"
+  relevant: [eng-postmortem-process]
+  teaches: lab1
+
+- query: "How do I roll back a bad production deploy?"
+  relevant: [eng-runbook-rollback]
+  teaches: lab1
+
+# Verified: naive dense search ranks this 3rd (behind an unrelated warehouse
+# doc and the company glossary, both of which happen to share vocabulary
+# with the question); expanding "OTIF" to "on-time-in-full" moves the right
+# document to 1st.
+- query: "What's the process if a delivery isn't OTIF?"
+  relevant: [ops-otif-exceptions]
+  teaches: lab2
+
+- query: "Do contractors need a COI on file before their access request is approved?"
+  relevant: [it-access-approval]
+  teaches: lab2
+
+- query: "What's needed before shipping something back to the origin facility, and what identifies that return once it's on its way?"
+  relevant: [ops-returns-rma]
+  teaches: lab2
+
+- query: "For a non-employee who needs remote network access, what software do they install, and whose sign-off do they need first?"
+  relevant: [it-vpn-policy, it-access-approval]
+  teaches: lab2
+
+# Verified: naive dense search matches the generic "error code reference"
+# framing shared by all three near-identical subsystem docs and picks the
+# wrong one; BM25's exact match on the literal code string breaks the tie.
+- query: "E-4021 cause"
+  relevant: [ops-error-codes-manifest]
+  teaches: lab3
+
+- query: "E-1002 cause"
+  relevant: [ops-error-codes-dispatch]
+  teaches: lab3
+
+- query: "E-5020 cause"
+  relevant: [ops-error-codes-billing]
+  teaches: lab3
+
+# Verified: hybrid retrieval already places the right document in the
+# top-5 pool but not 1st; the cross-encoder reranker moves it to 1st.
+- query: "How much paid time off do new parents get after an adoption?"
+  relevant: [hr-leave-parental]
+  teaches: lab4
+
+- query: "After five years here I'd like to take extended time off — how long can that be, and does it use up my PTO?"
+  relevant: [hr-leave-sabbatical]
+  teaches: lab4
+
+- query: "Is there paid leave for attending a funeral?"
+  relevant: [hr-leave-bereavement]
+  teaches: lab4
+
+- query: "How much paid time do I get if a court asks me to serve on a jury?"
+  relevant: [hr-leave-jury-duty]
+  teaches: lab4
+
+- query: "What second-factor login options are available besides a text message code?"
+  relevant: [it-mfa-sso-policy]
+  teaches: lab4
+
+- query: "What should I do if my company laptop is lost or stolen?"
+  relevant: [it-device-policy]
+  teaches: lab4

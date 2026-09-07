@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-reference-solutions:
+    # This job is the thing that keeps the lab honest: it proves every
+    # fixed test in tests/ is actually satisfiable by a correct
+    # implementation, using the reference solutions in solutions/. It does
+    # NOT test labs/ — those are meant to fail until a participant fills
+    # them in, so a broken labs/ stub must never break CI.
+    runs-on: ubuntu-latest
+    env:
+      KMP_DUPLICATE_LIB_OK: "TRUE"
+      RAG_LLM: offline
+      RAG_IMPL: solutions
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Run fixed tests against the reference solutions
+        run: pytest -v
+
+      - name: Render the reference scoreboard
+        run: python -m ragkit.scoreboard --run

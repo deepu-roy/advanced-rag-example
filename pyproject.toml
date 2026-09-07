@@ -1,0 +1,35 @@
+[project]
+name = "advanced-rag-example"
+version = "0.1.0"
+description = "A hands-on lab: naive RAG evolving through query optimization, hybrid retrieval + RRF, and reranking."
+requires-python = ">=3.11"
+dependencies = [
+    "faiss-cpu>=1.8.0",
+    "sentence-transformers>=3.0.0",
+    "rank_bm25>=0.2.2",
+    "numpy>=1.26.0",
+    "pyyaml>=6.0.1",
+    "openai>=1.40.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.6.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["ragkit*", "labs*", "solutions*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.pytest.ini_options]
+markers = [
+    "llm: requires a live LLM provider (Ollama or an OpenAI-compatible endpoint); deselected by default",
+]
+addopts = "-m 'not llm'"

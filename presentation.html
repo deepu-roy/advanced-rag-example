@@ -1,0 +1,1377 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Advanced RAG Lab — Interactive Briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300;400;700;800&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Devon theme — black / white / one orange accent. Orange is reserved for
+   emphasis (the correct answer, a CTA, a key number) — never a background
+   fill and never joined by a second accent hue; "wrong"/neutral states are
+   conveyed with grey and weight, not a second color. See devon-theme skill. */
+:root{
+  --bg:#ffffff; --bg-elev:#ffffff; --panel:#ffffff; --panel-2:#f5f5f5;
+  --border:#e5e5e5; --text:#1a1a1a; --text-dim:#3f3f3f; --text-faint:#6b6b6b;
+  --accent:#e74d2d; --accent-ink:#ffffff; --accent-soft:#fbe7e1;
+  --accent2:#6b6b6b; --accent2-soft:#f5f5f5;
+  --danger:#6b6b6b; --danger-soft:#f5f5f5;
+  --success:#e74d2d; --success-soft:#fbe7e1;
+  --code-bg:#000000; --code-text:#ffffff;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 6px 18px rgba(0,0,0,.05);
+  --radius: 12px;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --sans: 'Poppins', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --display: 'Funnel Display', 'Poppins', Montserrat, sans-serif;
+}
+:root[data-theme="dark"]{
+  --bg:#000000; --bg-elev:#121212; --panel:#121212; --panel-2:#1a1a1a;
+  --border:#2b2b2b; --text:#ffffff; --text-dim:#c9c9c9; --text-faint:#8f8f8f;
+  --accent:#e74d2d; --accent-ink:#ffffff; --accent-soft:#2a1712;
+  --accent2:#8f8f8f; --accent2-soft:#1a1a1a;
+  --danger:#8f8f8f; --danger-soft:#1a1a1a;
+  --success:#e74d2d; --success-soft:#2a1712;
+  --code-bg:#121212; --code-text:#ffffff;
+  --shadow: 0 1px 2px rgba(0,0,0,.5), 0 10px 26px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; font-family:var(--sans); background:var(--bg); color:var(--text);
+  -webkit-font-smoothing:antialiased;
+}
+.app{display:flex; min-height:100vh;}
+
+/* ---------- sidebar ---------- */
+.sidebar{
+  width:250px; flex:none; position:fixed; top:0; left:0; height:100vh;
+  background:var(--bg-elev); border-right:1px solid var(--border);
+  display:flex; flex-direction:column; z-index:40;
+}
+.brand{
+  padding:22px 20px 14px; font-weight:700; font-size:15px; letter-spacing:.2px;
+  display:flex; align-items:center; gap:10px; color:var(--text);
+}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent); box-shadow:0 0 0 4px var(--accent-soft);}
+.navlist{list-style:none; margin:6px 0; padding:0 10px; overflow-y:auto; flex:1;}
+.navlist li{margin:2px 0;}
+.navlist a{
+  display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px;
+  color:var(--text-dim); text-decoration:none; font-size:13.5px; font-weight:500;
+  transition:background .15s, color .15s;
+}
+.navlist a .num{
+  font-family:var(--mono); font-size:11px; color:var(--text-faint); width:18px; text-align:center;
+}
+.navlist a:hover{background:var(--panel-2); color:var(--text);}
+.navlist a.active{background:var(--accent-soft); color:var(--accent);}
+.navlist a.active .num{color:var(--accent);}
+.sub-nav{list-style:none; margin:0 0 8px 34px; padding:0; border-left:1px solid var(--border);}
+.sub-nav li a{font-size:12px; padding:6px 10px; font-weight:400;}
+.sidebar-foot{
+  padding:14px 20px; border-top:1px solid var(--border); display:flex; align-items:center;
+  justify-content:space-between; gap:8px;
+}
+.theme-btn{
+  border:1px solid var(--border); background:var(--panel-2); color:var(--text); cursor:pointer;
+  border-radius:9px; padding:7px 10px; font-size:12px; display:flex; gap:6px; align-items:center;
+  font-family:var(--sans);
+}
+.theme-btn:hover{border-color:var(--accent);}
+.progress-track{height:3px; background:var(--border); border-radius:2px; overflow:hidden; margin:0 20px 14px;}
+.progress-fill{height:100%; width:0%; background:var(--accent); transition:width .25s ease;}
+
+/* mobile top bar */
+.topbar{display:none;}
+
+/* ---------- main scroller ---------- */
+.main{
+  margin-left:250px; height:100vh; overflow-y:auto; scroll-snap-type:y proximity;
+  width:calc(100% - 250px);
+}
+.section{
+  min-height:100vh; padding:86px 64px 90px; scroll-snap-align:start;
+  display:flex; flex-direction:column; justify-content:center; position:relative;
+  border-bottom:1px dashed var(--border);
+}
+.section.tight{justify-content:flex-start;}
+.section-inner{max-width:1080px; margin:0 auto; width:100%;}
+.kicker{
+  font-family:var(--sans); text-transform:uppercase; letter-spacing:.12em; font-size:12px;
+  color:var(--accent); font-weight:700; margin:0 0 10px;
+}
+h1.title, h2.title{font-family:var(--display); font-weight:700;}
+h3.title{font-family:var(--sans); font-weight:700;}
+h1.title{font-size:44px; line-height:1.12; margin:0 0 16px; letter-spacing:-.5px;}
+h2.title{font-size:32px; line-height:1.18; margin:0 0 14px; letter-spacing:-.3px;}
+h3.title{font-size:21px; margin:0 0 10px;}
+.lede{font-size:18px; line-height:1.6; color:var(--text-dim); max-width:760px; margin:0 0 28px;}
+p{line-height:1.65; color:var(--text-dim);}
+strong{color:var(--text);}
+.section h2 + p, .section h3 + p{margin-top:0;}
+
+/* ---------- reveal-on-scroll ---------- */
+.reveal{opacity:0; transform:translateY(16px); transition:opacity .55s ease, transform .55s ease;}
+.reveal.in-view{opacity:1; transform:translateY(0);}
+.reveal.d1{transition-delay:.06s;} .reveal.d2{transition-delay:.12s;} .reveal.d3{transition-delay:.18s;}
+.reveal.d4{transition-delay:.24s;} .reveal.d5{transition-delay:.30s;} .reveal.d6{transition-delay:.36s;}
+
+/* ---------- generic building blocks ---------- */
+.card{
+  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius);
+  padding:20px; box-shadow:var(--shadow);
+}
+.grid{display:grid; gap:16px;}
+.grid.cols-2{grid-template-columns:1fr 1fr;}
+.grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.grid.cols-4{grid-template-columns:repeat(4,1fr);}
+@media (max-width:900px){ .grid.cols-2,.grid.cols-3,.grid.cols-4{grid-template-columns:1fr;} }
+
+.tag{
+  display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700;
+  padding:3px 9px; border-radius:999px; font-family:var(--sans); letter-spacing:.3px;
+}
+/* Orange is reserved for the one positive/verified signal; every other tag
+   stays neutral grey — Devon's palette has no second accent hue to spend
+   on differentiating "wrong" from "warning" from "info". */
+.tag.good{background:var(--success-soft); color:var(--success);}
+.tag.bad{background:var(--danger-soft); color:var(--danger);}
+.tag.warn{background:var(--accent2-soft); color:var(--accent2);}
+.tag.info{background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border);}
+
+code, .mono{font-family:var(--mono);}
+.codeline{
+  background:var(--code-bg); color:var(--code-text); border-radius:10px; padding:14px 16px;
+  font-family:var(--mono); font-size:13px; line-height:1.7; overflow-x:auto;
+}
+/* single accent inside code, too: the emphasized/changed token is orange,
+   comments are neutral grey — no rainbow syntax highlighting. */
+.codeline .c, .codeline .k, .codeline .s, .codeline .m{color:var(--accent); font-weight:600;}
+.codeline .cm{color:#9a9a9a;}
+
+.btn{
+  border:1px solid var(--border); background:var(--panel); color:var(--text); cursor:pointer;
+  border-radius:10px; padding:10px 16px; font-size:13.5px; font-weight:600; font-family:var(--sans);
+  display:inline-flex; align-items:center; gap:8px; transition:border-color .15s, transform .1s;
+}
+.btn:hover{border-color:var(--accent);}
+.btn:active{transform:scale(.97);}
+.btn.primary{background:var(--accent); color:var(--accent-ink); border-color:var(--accent);}
+
+.pill-toggle{display:inline-flex; background:var(--panel-2); border:1px solid var(--border); border-radius:999px; padding:3px;}
+.pill-toggle button{
+  border:none; background:transparent; padding:7px 14px; font-size:12.5px; font-weight:600; color:var(--text-dim);
+  border-radius:999px; cursor:pointer; font-family:var(--sans);
+}
+.pill-toggle button.active{background:var(--accent); color:var(--accent-ink);}
+
+.hint{font-size:12.5px; color:var(--text-faint); margin-top:8px;}
+hr.rule{border:none; border-top:1px solid var(--border); margin:28px 0;}
+
+/* scrollbar */
+.main::-webkit-scrollbar, .navlist::-webkit-scrollbar{width:8px;}
+.main::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
+
+@media (max-width:900px){
+  .sidebar{display:none;}
+  .topbar{
+    display:flex; position:sticky; top:0; z-index:30; background:var(--bg-elev);
+    border-bottom:1px solid var(--border); padding:10px 14px; align-items:center; justify-content:space-between;
+  }
+  .main{margin-left:0; width:100%;}
+  .section{padding:40px 20px 60px;}
+  h1.title{font-size:30px;} h2.title{font-size:24px;}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <strong>Advanced RAG Lab</strong>
+    <button class="theme-btn" id="themeBtnMobile">🌗 Theme</button>
+  </div>
+
+  <nav class="sidebar" aria-label="Presentation sections">
+    <div class="brand"><span class="dot"></span> Advanced&nbsp;RAG&nbsp;Lab</div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <ul class="navlist" id="navlist">
+      <li><a href="#hero" data-target="hero"><span class="num">·</span> Welcome</a></li>
+      <li><a href="#codespaces" data-target="codespaces"><span class="num">1</span> Codespaces &amp; Devcontainers</a></li>
+      <li><a href="#simplerag" data-target="simplerag"><span class="num">2</span> Simple RAG</a></li>
+      <li><a href="#queryopt" data-target="queryopt"><span class="num">3</span> Query Optimization</a></li>
+      <li><a href="#hybrid" data-target="hybrid"><span class="num">4</span> Hybrid Retrieval + RRF</a></li>
+      <li><a href="#rerank" data-target="rerank"><span class="num">5</span> Reranking</a></li>
+      <li><a href="#wrap" data-target="wrap"><span class="num">·</span> Wrap-up</a></li>
+    </ul>
+    <div class="sidebar-foot">
+      <span class="hint" style="margin:0;">↑↓ or 0-6 to navigate</span>
+      <button class="theme-btn" id="themeBtn">🌗</button>
+    </div>
+  </nav>
+
+  <main class="main" id="main">
+
+    <!-- ================= HERO ================= -->
+    <section class="section" id="hero">
+      <div class="section-inner">
+        <p class="kicker reveal">A workshop briefing · built from this repo's own measured results</p>
+        <h1 class="title reveal d1" style="font-size:56px;">From naive RAG to a<br>real retrieval pipeline.</h1>
+        <p class="lede reveal d2">
+          Everything in this deck — every "before/after" number, every ranked list — comes from actually
+          running the four lab pipelines in <code class="mono">solutions/</code> against the gold query set in
+          <code class="mono">data/gold_queries.yaml</code>. Nothing here is illustrative fiction.
+        </p>
+        <div class="reveal d3" style="display:flex; gap:12px; flex-wrap:wrap;">
+          <button class="btn primary" onclick="goTo('codespaces')">Start with Codespaces →</button>
+          <button class="btn" onclick="goTo('simplerag')">Skip to Simple RAG →</button>
+        </div>
+        <p class="hint reveal d4">Use the sidebar, scroll, or arrow keys / number keys 0–6 to move between sections.</p>
+      </div>
+    </section>
+
+    <!-- ================= 1. CODESPACES ================= -->
+    <section class="section tight" id="codespaces">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1 · Environments</p>
+        <h2 class="title reveal d1">GitHub Codespaces &amp; Devcontainers</h2>
+        <p class="lede reveal d2">
+          Every lab in this repo runs the same way for every participant, on any laptop, with zero
+          "it works on my machine" debugging — because nobody's machine is involved.
+        </p>
+
+        <div class="grid cols-2 reveal d3">
+          <div class="card">
+            <span class="tag bad">The old way</span>
+            <h3 class="title" style="margin-top:10px;">Local setup, every time</h3>
+            <p>Install Python 3.12, create a venv, fight a FAISS wheel that won't build on Apple Silicon,
+              discover you have the wrong CUDA driver, realize your Python is actually 3.9 because of an
+              old <code class="mono">.zshrc</code> alias — twenty minutes before anyone's written a line
+              of the actual lab.</p>
+          </div>
+          <div class="card" style="border-color:var(--accent);">
+            <span class="tag good">With Codespaces</span>
+            <h3 class="title" style="margin-top:10px;">One click, identical environment</h3>
+            <p>The repo <em>declares</em> its environment in <code class="mono">.devcontainer/</code>. GitHub
+              builds that exact environment in the cloud and hands you a VS Code (or terminal) already
+              inside it. Every participant gets byte-for-byte the same Python, the same models
+              pre-downloaded, the same Ollama server already running.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- 1b. Devcontainer anatomy ---- -->
+    <section class="section tight" id="codespaces-anatomy">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1, continued · How it works</p>
+        <h2 class="title reveal d1">What is a devcontainer, exactly?</h2>
+        <p class="lede reveal d2">
+          A <code class="mono">devcontainer.json</code> file is a declarative recipe: base image, features
+          to layer on, commands to run once the container exists, and editor settings to apply. Click any
+          highlighted part of this repo's actual config to see what it does.
+        </p>
+
+        <div class="grid cols-2 reveal d3" style="align-items:start;">
+          <pre class="codeline" id="devcontainerCode" style="margin:0;">{
+  <span class="jkey" data-title='"image"' data-desc="The base container image to start from — here, Microsoft's official Python 3.12 devcontainer image, which already has Python, pip, git, and common CLI tools preinstalled.">"image"</span>: "mcr.microsoft.com/devcontainers/python:3.12",
+  <span class="jkey" data-title='"features"' data-desc="Reusable, composable layers added on top of the base image. Each feature is a small published package (often community-maintained) that installs one thing — here, the Ollama feature installs the Ollama CLI and runtime.">"features"</span>: {
+    "ghcr.io/prulloac/devcontainer-features/ollama:1": {}
+  },
+  <span class="jkey" data-title='"hostRequirements"' data-desc="Minimum machine size GitHub should provision for this Codespace. We ask for 4 cores because a 2-core machine makes the local Ollama model noticeably slower to respond during Lab 2.">"hostRequirements"</span>: { "cpus": 4 },
+  <span class="jkey" data-title='"postCreateCommand"' data-desc="A shell command that runs exactly once, right after the container is created — before you ever see it. This is where we pip install the package, pull the Ollama model, and pre-warm the embedding cache, so your first pytest run isn't waiting on downloads.">"postCreateCommand"</span>: "bash .devcontainer/postCreate.sh",
+  <span class="jkey" data-title='"customizations.vscode.extensions"' data-desc="Extensions to auto-install in the editor the moment it opens — here, GitHub Copilot, Copilot Chat, the Python extension, and Ruff, so nobody has to remember to install them by hand.">"customizations"</span>: {
+    "vscode": { "extensions": ["GitHub.copilot", "GitHub.copilot-chat", "ms-python.python"] }
+  }
+}</pre>
+          <div class="card" id="explainPanel" style="min-height:220px; display:flex; flex-direction:column; justify-content:center;">
+            <span class="tag info" style="align-self:flex-start;">tap a key</span>
+            <p style="margin:10px 0 0; color:var(--text);">Click any highlighted line in the config on the
+              left — each one is real, from <code class="mono">.devcontainer/devcontainer.json</code> in this
+              repo — to see what it actually does and why this lab uses it.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- 1c. Devcontainer lifecycle ---- -->
+    <section class="section tight" id="codespaces-lifecycle">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1, continued · How it works</p>
+        <h2 class="title reveal d1">What happens between "Create codespace" and your first keystroke</h2>
+        <p class="lede reveal d2">Four steps, all automatic, all defined by the file on the previous slide.</p>
+        <div class="reveal d3">
+          <button class="btn primary" id="lifecyclePlay">▶ Run the lifecycle</button>
+          <span class="hint" id="lifecycleCaption" style="margin-left:12px;">Press play to step through it.</span>
+        </div>
+        <div class="lifecycle reveal d4" id="lifecycleRow">
+          <div class="life-node" data-step="0"><div class="life-dot">1</div><div class="life-label">Pull base image</div><div class="life-sub">Python 3.12 devcontainer</div></div>
+          <div class="life-arrow"></div>
+          <div class="life-node" data-step="1"><div class="life-dot">2</div><div class="life-label">Install features</div><div class="life-sub">Ollama runtime layered in</div></div>
+          <div class="life-arrow"></div>
+          <div class="life-node" data-step="2"><div class="life-dot">3</div><div class="life-label">postCreate.sh</div><div class="life-sub">pip install, pull model, warm caches</div></div>
+          <div class="life-arrow"></div>
+          <div class="life-node" data-step="3"><div class="life-dot">4</div><div class="life-label">Ready</div><div class="life-sub">Editor + extensions + forwarded ports</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- 1d. What's possible / why it matters ---- -->
+    <section class="section tight" id="codespaces-possible">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1, continued · Features &amp; benefits</p>
+        <h2 class="title reveal d1">What's possible, and why it matters here</h2>
+        <div class="grid cols-2 reveal d2">
+          <div>
+            <h3 class="title">What's possible</h3>
+            <div class="grid cols-2" style="gap:10px;">
+              <div class="card" style="padding:14px;"><strong>Prebuilds</strong><p style="margin:4px 0 0; font-size:13px;">GitHub builds the container ahead of time, so launch is seconds, not minutes.</p></div>
+              <div class="card" style="padding:14px;"><strong>Any client</strong><p style="margin:4px 0 0; font-size:13px;">Browser, desktop VS Code, JetBrains Gateway, or the <code class="mono">gh cs</code> CLI over SSH.</p></div>
+              <div class="card" style="padding:14px;"><strong>Port forwarding</strong><p style="margin:4px 0 0; font-size:13px;">A server running on <code class="mono">localhost:11434</code> in the cloud is reachable from your laptop's browser.</p></div>
+              <div class="card" style="padding:14px;"><strong>Secrets</strong><p style="margin:4px 0 0; font-size:13px;">Org- or user-level encrypted secrets injected as env vars — an API key never touches the repo.</p></div>
+              <div class="card" style="padding:14px;"><strong>Machine sizes</strong><p style="margin:4px 0 0; font-size:13px;">2 to 32 cores, picked per-repo or per-launch, including larger-RAM and GPU-enabled options.</p></div>
+              <div class="card" style="padding:14px;"><strong>Disposable</strong><p style="margin:4px 0 0; font-size:13px;">Break something? Delete the Codespace, spin up a fresh one from the same recipe in a minute.</p></div>
+            </div>
+          </div>
+          <div>
+            <h3 class="title">Why it matters here</h3>
+            <ul style="padding-left:18px; color:var(--text-dim); line-height:1.9;">
+              <li><strong>Zero setup time.</strong> A 90-minute workshop doesn't lose 20 of them to pip errors.</li>
+              <li><strong>Identical bugs.</strong> If something breaks, it breaks the same way for everyone — easy to debug together.</li>
+              <li><strong>Sandboxed.</strong> Nobody installs anything on their own laptop; nothing to clean up afterward.</li>
+              <li><strong>Version-controlled environment.</strong> The devcontainer config lives in git — it reviews and evolves like code.</li>
+              <li><strong>Same recipe, real production skill.</strong> Writing a devcontainer is directly useful back at work, not a workshop-only trick.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- 1e. Real-world use cases ---- -->
+    <section class="section tight" id="codespaces-usecases">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1, continued · Where this actually gets used</p>
+        <h2 class="title reveal d1">Real-world use cases, not just workshops</h2>
+        <p class="lede reveal d2">
+          This lab is one use case. Teams run on Codespaces (or a local devcontainer running the exact
+          same config) for reasons that have nothing to do with training.
+        </p>
+
+        <div class="grid cols-3 reveal d3">
+          <div class="card" style="padding:16px;">
+            <strong>🚀 Instant onboarding</strong>
+            <p style="font-size:13px; margin:8px 0 0;">A new hire opens a PR on day one instead of spending
+              day one fighting a Python version manager. The environment is the same one everyone on the
+              team already uses.</p>
+          </div>
+          <div class="card" style="padding:16px;">
+            <strong>🌍 Frictionless OSS contribution</strong>
+            <p style="font-size:13px; margin:8px 0 0;">A contributor fixing a typo shouldn't need to install
+              your entire build toolchain. A "Contribute" badge that opens a working Codespace turns a
+              10-minute favor into a 10-minute favor, instead of a 45-minute yak-shave.</p>
+          </div>
+          <div class="card" style="padding:16px;">
+            <strong>🔎 Ephemeral PR review</strong>
+            <p style="font-size:13px; margin:8px 0 0;">Spin up a live, running instance of exactly the
+              branch under review, click through the actual UI change, then delete it. No more reviewing a
+              frontend PR by reading a diff and hoping.</p>
+          </div>
+          <div class="card" style="padding:16px;">
+            <strong>🎓 Workshops &amp; training</strong>
+            <p style="font-size:13px; margin:8px 0 0;">This lab. Every participant starts from an identical,
+              pre-warmed environment in under a minute — the facilitator debugs one broken laptop instead of
+              twenty.</p>
+          </div>
+          <div class="card" style="padding:16px;">
+            <strong>🗄️ Legacy &amp; conflicting toolchains</strong>
+            <p style="font-size:13px; margin:8px 0 0;">Maintain a 2019 service pinned to Node 12 and today's
+              service on Node 22 without version managers fighting each other on your actual laptop.</p>
+          </div>
+          <div class="card" style="padding:16px;">
+            <strong>🤝 Live demos &amp; pair programming</strong>
+            <p style="font-size:13px; margin:8px 0 0;">Port-forward a running app straight from the cloud
+              container into a teammate's or client's browser. No screen-share lag, no "works on my
+              machine" during the demo itself.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- 1c. AI agent sandboxing spotlight ---- -->
+    <section class="section tight" id="codespaces-agent-sandbox">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1, continued · The newest use case</p>
+        <h2 class="title reveal d1">Sandboxing autonomous AI coding agents</h2>
+        <p class="lede reveal d2">An agent that can run shell commands, install packages, and edit files
+          shouldn't have your SSH keys, your other repositories, or your production credentials sitting
+          within reach.</p>
+
+        <div class="card reveal d3" style="border-color:var(--accent);">
+          <span class="tag good">⚡ increasingly the default pattern for agentic coding tools</span>
+          <p style="margin-top:12px;">A bad instruction, a hallucinated command, or a compromised
+            dependency shouldn't be able to touch anything real. Running the agent inside a disposable
+            container solves this by construction: if it does something wrong, you delete the Codespace.
+            Nothing on your actual machine was ever at risk.</p>
+          <p style="margin-top:10px;">This isn't hypothetical — it's how GitHub's own autonomous
+            <strong>Copilot coding agent</strong> works today: given a GitHub Issue, it does its work inside
+            an isolated, cloud-hosted sandbox (a GitHub Actions runner configured by your repo's own
+            <code class="mono">copilot-setup-steps.yml</code>) and hands back a pull request — it never
+            touches a human's machine at all. GitHub Copilot's interactive sessions now offer the same idea
+            explicitly, with a <code class="mono">/sandbox enable</code> mode that restricts an agent's
+            filesystem and network access before it runs a single command. The same principle applies
+            however you're agentically coding — Claude Code, Copilot, Cursor, or anything else driving a
+            shell — a devcontainer is a natural, standard place to put that boundary.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- 1d. Local devcontainers vs Codespaces ---- -->
+    <section class="section tight" id="codespaces-local-vs-cloud">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1, continued · One spec, not one vendor</p>
+        <h2 class="title reveal d1">Local devcontainers vs. GitHub Codespaces</h2>
+        <p class="lede reveal d2">
+          <code class="mono">devcontainer.json</code> is not a GitHub-only format — it's an open
+          specification (<strong>containers.dev</strong>). The exact same file this repo ships already
+          works whether it runs on GitHub's cloud compute or on the laptop sitting in front of you. That
+          portability is the actual standard being adopted here, not any one product.
+        </p>
+
+        <div class="spec-diagram reveal d3">
+          <div class="spec-hub">.devcontainer/devcontainer.json<div class="hint" style="margin-top:2px;">one file, checked into git</div></div>
+          <div class="spec-lines"></div>
+          <div class="spec-spokes">
+            <div class="spec-node">VS Code + Docker<div class="hint">on your own laptop</div></div>
+            <div class="spec-node accent">GitHub Codespaces<div class="hint">cloud compute, any browser</div></div>
+            <div class="spec-node">DevPod<div class="hint">Kubernetes, a remote box, any cloud you choose</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- 1e. Local vs cloud comparison table ---- -->
+    <section class="section tight" id="codespaces-comparison">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1, continued · One spec, not one vendor</p>
+        <h2 class="title reveal d1">Same recipe, two places to run it</h2>
+        <div class="card reveal d2" style="overflow-x:auto;">
+          <table class="mrr-table" style="text-align:left;">
+            <thead><tr><th>&nbsp;</th><th>Local devcontainer (Docker + VS Code)</th><th>GitHub Codespaces</th></tr></thead>
+            <tbody>
+              <tr><td>Compute</td><td>Your laptop's own CPU / RAM / GPU</td><td>A cloud VM, 2–32 cores, picked per launch</td></tr>
+              <tr><td>Setup required</td><td>Docker Desktop (or Engine) + VS Code installed first</td><td>A browser. That's the whole requirement.</td></tr>
+              <tr><td>Isolation from your host</td><td>Shares your machine's kernel and resources — a runaway process still drains your battery</td><td>A genuinely separate machine — it cannot touch your laptop even if something inside tries to</td></tr>
+              <tr><td>Cost</td><td>Free — uses hardware you already own</td><td>Metered by the hour (see the calculator next); most workshop use fits the free tier</td></tr>
+              <tr><td>Best for</td><td>GPU-heavy ML work, fully offline development, zero marginal cost for personal projects</td><td>Onboarding, teams, ephemeral environments, and anything untrusted or agentic</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint reveal">The row that matters most: <strong>the recipe is identical either way.</strong>
+          Where a devcontainer runs is a deploy-time choice, the same way choosing a Kubernetes cluster is —
+          it isn't a different architecture. That's precisely why container-based development environments
+          are becoming a baseline expectation for serious teams, not a GitHub-specific trick.</p>
+      </div>
+    </section>
+
+    <!-- ---- 1f. Cost ---- -->
+    <section class="section tight" id="codespaces-cost">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1, continued · Cost</p>
+        <h2 class="title reveal d1">What does this actually cost?</h2>
+        <p class="lede reveal d2">
+          GitHub bills Codespaces on two dimensions — compute while it's running, and storage while it
+          exists at all, even stopped. Play with the sliders below; the formula and rates are GitHub's
+          real published pricing, not rounded guesses.
+        </p>
+
+        <div class="card reveal d3">
+          <div style="display:flex; flex-wrap:wrap; gap:28px; align-items:flex-start;">
+            <div style="flex:1; min-width:260px;">
+              <label class="hint" style="display:block; margin-bottom:8px;">Machine size</label>
+              <div class="pill-toggle" id="coreToggle">
+                <button data-cores="2" class="active">2-core</button>
+                <button data-cores="4">4-core</button>
+                <button data-cores="8">8-core</button>
+                <button data-cores="16">16-core</button>
+                <button data-cores="32">32-core</button>
+              </div>
+
+              <label class="hint" style="display:block; margin:18px 0 8px;">Plan (sets your free monthly quota)</label>
+              <div class="pill-toggle" id="planToggle">
+                <button data-plan="free" class="active">GitHub Free</button>
+                <button data-plan="pro">GitHub Pro</button>
+                <button data-plan="team">Team / Enterprise</button>
+              </div>
+
+              <label class="hint" style="display:block; margin:18px 0 4px;">
+                Active hours per month: <strong id="hoursVal" style="color:var(--text);">40</strong>
+              </label>
+              <input type="range" id="hoursRange" min="0" max="200" value="40" style="width:100%;">
+
+              <label class="hint" style="display:block; margin:16px 0 4px;">
+                Storage kept around: <strong id="gbVal" style="color:var(--text);">10</strong> GB
+              </label>
+              <input type="range" id="gbRange" min="0" max="60" value="10" style="width:100%;">
+            </div>
+
+            <div style="flex:1; min-width:260px;">
+              <div id="costOut" class="codeline" style="font-size:13.5px;"></div>
+              <p class="hint" id="costNote"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---- 1g. Cost, the rates ---- -->
+    <section class="section tight" id="codespaces-cost-rates">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 1, continued · Cost</p>
+        <h2 class="title reveal d1">What this means for a workshop like this one</h2>
+        <div class="grid cols-3 reveal d1">
+          <div class="card" style="padding:14px;"><strong>$0.09</strong><div class="hint">per core-hour of compute (linear — a 4-core machine is 2× a 2-core one)</div></div>
+          <div class="card" style="padding:14px;"><strong>$0.07</strong><div class="hint">per GB-month of storage — keeps accruing even while stopped</div></div>
+          <div class="card" style="padding:14px;"><strong>120 / 180</strong><div class="hint">free core-hours per month on Free / Pro personal accounts; org plans get none free</div></div>
+        </div>
+        <p class="hint reveal" style="margin-top:16px;">For this lab: a 4-core Codespace used for a 2-hour
+          workshop session is 8 core-hours — comfortably inside even the Free plan's 120 free core-hours, so
+          most participants pay literally nothing to attend.</p>
+      </div>
+    </section>
+
+    <!-- ================= 2. SIMPLE RAG ================= -->
+    <section class="section tight" id="simplerag">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 2 · The baseline</p>
+        <h2 class="title reveal d1">Simple RAG</h2>
+        <p class="lede reveal d2">
+          Retrieval-Augmented Generation, stripped to its essentials: find text that might answer the
+          question, hand it to a language model, ask it to answer <em>using only that text</em>.
+        </p>
+
+        <div class="card reveal d3">
+          <h3 class="title" style="margin-top:0;">Watch it run</h3>
+          <button class="btn primary" id="ragPlay">▶ Run a query through Simple RAG</button>
+          <div class="rag-pipeline" id="ragPipeline">
+            <div class="rag-node" data-n="0"><div class="rag-box">📝<br>Query</div></div>
+            <div class="rag-wire"></div>
+            <div class="rag-node" data-n="1"><div class="rag-box">🧮<br>Embed</div></div>
+            <div class="rag-wire"></div>
+            <div class="rag-node" data-n="2"><div class="rag-box">🔎<br>Vector search</div></div>
+            <div class="rag-wire"></div>
+            <div class="rag-node" data-n="3"><div class="rag-box">📄<br>Top-k chunks</div></div>
+            <div class="rag-wire"></div>
+            <div class="rag-node" data-n="4"><div class="rag-box">🧵<br>Prompt</div></div>
+            <div class="rag-wire"></div>
+            <div class="rag-node" data-n="5"><div class="rag-box">🤖<br>LLM</div></div>
+            <div class="rag-wire"></div>
+            <div class="rag-node" data-n="6"><div class="rag-box">💬<br>Answer</div></div>
+          </div>
+          <div id="ragCaption" class="hint" style="min-height:18px; margin-top:10px;"></div>
+          <div id="ragOutput" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tight" id="simplerag-definition">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 2, continued · What it is, and isn't</p>
+        <h2 class="title reveal d1">What Simple RAG is — and is not</h2>
+        <div class="grid cols-2 reveal d2">
+          <div>
+            <h3 class="title">What it is</h3>
+            <ul style="padding-left:18px; color:var(--text-dim); line-height:1.9;">
+              <li>A way to give a language model <strong>relevant context</strong> it wasn't trained on — this
+                week's runbook, not last year's Wikipedia dump.</li>
+              <li>Nearest-neighbor search in embedding space: turn text into vectors, find the closest ones.</li>
+              <li>Cheap, fast, and a genuinely strong baseline — most of this lab's own control queries never
+                need anything more.</li>
+            </ul>
+          </div>
+          <div>
+            <h3 class="title">What it is <em>not</em></h3>
+            <div class="grid" style="gap:8px;">
+              <div class="card" style="padding:12px;"><span class="tag bad">not</span> a fact database — it retrieves <em>text that looks relevant</em>, not verified truth.</div>
+              <div class="card" style="padding:12px;"><span class="tag bad">not</span> fine-tuning — the model's weights never change; only its input does.</div>
+              <div class="card" style="padding:12px;"><span class="tag bad">not</span> guaranteed correct — if the wrong chunk is retrieved, the model confidently answers from the wrong chunk.</div>
+              <div class="card" style="padding:12px;"><span class="tag bad">not</span> a replacement for a good corpus — garbage in, garbage retrieved.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tight" id="simplerag-fail">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 2, continued · Where it breaks</p>
+        <h2 class="title reveal d1">Why it doesn't scale: a real failure from this repo</h2>
+        <p class="lede reveal d2">
+          Ask Lab 1's naive dense retriever: <strong>"What's the process if a delivery isn't OTIF?"</strong>
+          The document that actually answers this never uses the acronym "OTIF" — it spells out
+          "on-time-in-full" throughout. Watch what gets ranked first instead.
+        </p>
+        <button class="btn primary reveal d3" id="failPlay">▶ Reveal the ranking</button>
+        <div class="rank-list reveal d3" id="failRankList" style="margin-top:16px;"></div>
+        <p class="hint reveal">Scores are real cosine similarities from <code class="mono">solutions/lab01_simple_rag.py</code> — nothing here is invented.</p>
+        <div class="card reveal d4" style="margin-top:16px; border-color:var(--danger);">
+          <strong>Why this happens:</strong>
+          <p style="margin:6px 0 0;">Dense embeddings represent <em>meaning</em>, and "OTIF" — a rare acronym
+            the model has little to anchor semantically — doesn't embed close to "on-time-in-full" in vector
+            space. Meanwhile the company glossary document literally contains the string "OTIF" in a
+            definition, which is enough surface similarity to outrank the actual runbook. This gets worse,
+            not better, as a corpus grows: more documents mean more coincidental near-matches like this one.
+            Section 3 fixes exactly this.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 3. QUERY OPTIMIZATION ================= -->
+    <section class="section tight" id="queryopt">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 3 · Fix the question, not just the search</p>
+        <h2 class="title reveal d1">Query Optimization</h2>
+        <p class="lede reveal d2">
+          Lab 2 combines three of these techniques; the other three are just as common in production
+          systems and worth knowing. Click a technique to see how it changes a real question.
+        </p>
+
+        <div class="tabs reveal d3" id="qoTabs">
+          <button class="qo-tab active" data-tab="expand">Acronym / Glossary Expansion</button>
+          <button class="qo-tab" data-tab="rewrite">Query Rewriting</button>
+          <button class="qo-tab" data-tab="decompose">Sub-question Decomposition</button>
+          <button class="qo-tab" data-tab="multi">Multi-Query (RAG-Fusion)</button>
+          <button class="qo-tab" data-tab="stepback">Step-Back Prompting</button>
+          <button class="qo-tab" data-tab="hyde">HyDE</button>
+        </div>
+
+        <div class="card qo-panel reveal d4" id="qoPanel"></div>
+      </div>
+    </section>
+
+    <section class="section tight" id="queryopt-result">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 3, continued · The fix, measured</p>
+        <h2 class="title reveal d1">Same query, after expansion</h2>
+        <p class="lede reveal d2">
+          Acronym expansion alone (adding "on-time-in-full" alongside "OTIF") is enough to flip the ranking.
+          The margin is narrow — this is a real, exact-measured result, not a clean textbook win.
+        </p>
+        <button class="btn primary reveal d3" id="fixPlay">▶ Watch the ranking flip</button>
+        <div class="rank-compare reveal d3" id="fixCompare" style="margin-top:16px;"></div>
+      </div>
+    </section>
+
+    <!-- ================= 4. HYBRID + RRF ================= -->
+    <section class="section tight" id="hybrid">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 4 · Two kinds of "relevant"</p>
+        <h2 class="title reveal d1">Hybrid Retrieval</h2>
+        <p class="lede reveal d2">
+          Dense embeddings and classic keyword search (BM25) fail in almost opposite ways. Hybrid
+          retrieval runs both and combines their rankings, so each one's blind spot is covered by the
+          other's strength.
+        </p>
+
+        <div class="grid cols-2 reveal d3">
+          <div class="card">
+            <span class="tag info">Dense (semantic) search</span>
+            <p style="margin-top:10px;"><strong>Great at:</strong> paraphrase, synonyms, "meaning" — finds
+              "time off after a death in the family" even when the query says "bereavement".</p>
+            <p><strong>Bad at:</strong> exact rare tokens. Three documents that all say "this reference lists
+              the error codes for the ___ subsystem" look nearly identical in embedding space — the one
+              distinguishing detail, a specific code, can get outweighed by shared boilerplate.</p>
+          </div>
+          <div class="card">
+            <span class="tag warn">Sparse (BM25 / lexical) search</span>
+            <p style="margin-top:10px;"><strong>Great at:</strong> exact identifiers, codes, names — rare
+              tokens get a high IDF weight, so a document containing the literal string "E-4021" wins
+              decisively.</p>
+            <p><strong>Bad at:</strong> paraphrase. It has no idea "bereavement" and "a death in the family"
+              mean the same thing.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tight" id="hybrid-fail">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 4, continued · Where dense search breaks</p>
+        <h2 class="title reveal d1">Real failure: three near-identical documents</h2>
+        <p class="lede reveal d2">Query: <strong>"E-4021 cause"</strong>. Three documents share almost all
+          their framing language, differing only in which error codes they list.</p>
+        <div class="grid cols-2 reveal d3" style="margin-top:8px;">
+          <div>
+            <div class="hint" style="margin-bottom:6px;">Dense search ranks it 2nd — the wrong document wins:</div>
+            <div class="mini-rank">
+              <div class="mini-row bad">1. Billing Subsystem Error Codes <span class="mono">0.3553</span> ✗</div>
+              <div class="mini-row good">2. Manifest Sync Subsystem Error Codes <span class="mono">0.3109</span> ← correct</div>
+            </div>
+          </div>
+          <div>
+            <div class="hint" style="margin-bottom:6px;">BM25 gets it right, decisively:</div>
+            <div class="mini-rank">
+              <div class="mini-row good">1. Manifest Sync Subsystem Error Codes <span class="mono">5.8631</span> ✓</div>
+              <div class="mini-row">2. Billing Subsystem Error Codes <span class="mono">2.4343</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tight" id="hybrid-rrf">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 4, continued · Combining two rankings</p>
+        <h2 class="title reveal d1">Why Reciprocal Rank Fusion?</h2>
+        <p class="lede reveal d2">
+          You can't just average a cosine similarity (0 to 1) with a BM25 score (0 to unbounded, corpus-size
+          dependent) — they're not on the same scale. RRF sidesteps the whole problem by ignoring the
+          scores entirely and fusing on <strong>rank position</strong> instead:
+        </p>
+        <div class="codeline reveal d3">score(doc) = Σ over every ranking that contains it, of &nbsp; 1 / (k + rank(doc))</div>
+      </div>
+    </section>
+
+    <section class="section tight" id="hybrid-rrf-calc" style="padding-top:56px; padding-bottom:56px;">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 4, continued · Try it yourself</p>
+        <h2 class="title reveal d1">Live fusion, with real rankings</h2>
+        <div class="card reveal d2" style="margin-top:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <strong>Query: "E-4021 cause"</strong>
+            <div>
+              <label class="hint">k = <strong id="kVal" style="color:var(--text);">60</strong></label>
+              <input type="range" id="kRange" min="1" max="100" value="60" style="width:160px; vertical-align:middle; margin-left:8px;">
+            </div>
+          </div>
+          <div class="grid cols-3" id="rrfGrid" style="margin-top:14px; align-items:start;"></div>
+          <p class="hint">Try dragging k to 1 or 100 — low k lets a #1 finish dominate; high k flattens the
+            effect of rank almost entirely. 60 is the conventional default because it works well across
+            most corpora without tuning. Notice manifest and billing stay razor-close at every value of k —
+            this document-level view is a simplification (the real lab code fuses individual chunks, not
+            whole documents); the exact verified result from <code class="mono">solutions/lab03_hybrid_rrf.py</code>
+            is 0.032266 vs 0.032258 — manifest wins, but only just. RRF got the right answer; it didn't get
+            a confident one. That gap is exactly what Section 5 fixes.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 5. RERANKING ================= -->
+    <section class="section" id="rerank">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 5 · Precision, not recall</p>
+        <h2 class="title reveal d1">Reranking</h2>
+        <p class="lede reveal d2">
+          Hybrid retrieval is good at getting the right document <em>somewhere</em> in a top-20 pool. It's
+          not always good at putting it <em>first</em>. Reranking's whole job is reordering a pool that's
+          already been narrowed down — it's a precision tool, not a recall tool.
+        </p>
+      </div>
+    </section>
+
+    <section class="section tight" id="rerank-diagram" style="padding-top:50px; padding-bottom:50px;">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 5, continued · Why this needs a second pass</p>
+        <h2 class="title reveal d1">Bi-encoder vs. cross-encoder</h2>
+        <div class="grid cols-2 reveal d2">
+          <div class="card">
+            <span class="tag info">Bi-encoder (dense retrieval, Sections 2–4)</span>
+            <div class="be-diagram">
+              <div class="be-box">Query</div>
+              <div class="be-arrow-down"></div>
+              <div class="be-enc">Encoder</div>
+              <div class="be-arrow-down"></div>
+              <div class="be-vec">vector A</div>
+              <div class="be-compare">cosine(A, B)</div>
+              <div class="be-vec">vector B</div>
+              <div class="be-arrow-up"></div>
+              <div class="be-enc">Encoder</div>
+              <div class="be-arrow-up"></div>
+              <div class="be-box">Passage</div>
+            </div>
+            <p class="hint">Query and passage never "meet" until their two independent vectors are compared
+              at the end. Fast — passage vectors are precomputed once for the whole corpus — but the
+              encoder never sees them together.</p>
+          </div>
+          <div class="card" style="border-color:var(--accent);">
+            <span class="tag good">Cross-encoder (reranking)</span>
+            <div class="ce-diagram">
+              <div class="ce-pair">
+                <div class="be-box">Query</div>
+                <div class="ce-plus">+</div>
+                <div class="be-box">Passage</div>
+              </div>
+              <div class="be-arrow-down"></div>
+              <div class="be-enc" style="width:100%;">One joint encoder (full attention across both)</div>
+              <div class="be-arrow-down"></div>
+              <div class="be-vec" style="width:100%;">a single relevance score</div>
+            </div>
+            <p class="hint">Query and passage are read together, token-by-token attention across both. Far
+              more accurate at judging true relevance — but too slow to run over an entire corpus, which is
+              why it only reranks an already-narrow pool.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tight" id="rerank-methods">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 5, continued · Other options</p>
+        <h2 class="title reveal d1">Other reranking methods, briefly</h2>
+        <div class="grid cols-3 reveal d2">
+          <div class="card" style="padding:14px;"><strong>LLM-as-reranker</strong><p style="font-size:13px; margin:6px 0 0;">Ask a general LLM to score or rank candidates directly (pointwise or listwise). Most flexible, most expensive per query.</p></div>
+          <div class="card" style="padding:14px;"><strong>ColBERT (late interaction)</strong><p style="font-size:13px; margin:6px 0 0;">Keeps one vector per token instead of one per passage, comparing token-to-token. A middle ground: more accurate than a bi-encoder, cheaper than a full cross-encoder.</p></div>
+          <div class="card" style="padding:14px;"><strong>Multi-vector / ensemble</strong><p style="font-size:13px; margin:6px 0 0;">Combine several rerankers' scores (or a reranker with the original fused score) with a weighted blend, when one signal alone isn't trusted enough.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tight" id="rerank-result">
+      <div class="section-inner">
+        <p class="kicker reveal">Section 5, continued · Watch it decide</p>
+        <h2 class="title reveal d1">"How much paid time off do new parents get after an adoption?"</h2>
+        <p class="lede reveal d2">
+          Hybrid retrieval already found the right policy — it's just barely behind a decoy. Watch the
+          cross-encoder read query and passage together and turn a coin-flip into a landslide.
+        </p>
+        <button class="btn primary reveal d3" id="rerankPlay">▶ Run the reranker</button>
+        <div class="rerank-compare reveal d3" id="rerankCompare" style="margin-top:16px;"></div>
+        <p class="hint reveal">Scores are real, from <code class="mono">solutions/lab04_reranking.py</code>.
+          Notice the scale: hybrid's fused scores (0.0320 vs 0.0315) are separated by a hair; the
+          cross-encoder's (+2.29 vs -4.18) are not remotely close. That gap <em>is</em> the value of reading
+          query and passage together instead of comparing separately-computed scores.</p>
+      </div>
+    </section>
+
+    <!-- ================= WRAP-UP ================= -->
+    <section class="section" id="wrap" style="padding-top:56px; padding-bottom:56px;">
+      <div class="section-inner">
+        <p class="kicker reveal">Wrap-up</p>
+        <h2 class="title reveal d1">Every stage, measured — grouped by what it was built to fix</h2>
+        <p class="lede reveal d2" style="margin-bottom:18px;">
+          The overall gold-set average looks modest, because most queries are "control" queries every
+          pipeline already answers correctly. Grouped by the specific failure each stage targets, the
+          story is decisive: MRR climbs to (or holds) its ceiling right at the stage responsible for it.
+        </p>
+        <div class="card reveal d3" style="overflow-x:auto;">
+          <table class="mrr-table">
+            <thead><tr><th>query category</th><th>01 simple</th><th>02 query-opt</th><th>03 hybrid+RRF</th><th>04 rerank</th></tr></thead>
+            <tbody>
+              <tr><td>lab1 (control)</td><td class="hit">1.000</td><td>1.000</td><td>1.000</td><td>1.000</td></tr>
+              <tr><td>lab2 targets</td><td>0.833</td><td class="hit">1.000</td><td>0.875</td><td>0.875</td></tr>
+              <tr><td>lab3 targets</td><td>0.667</td><td>0.750</td><td class="hit">1.000</td><td>1.000</td></tr>
+              <tr><td>lab4 targets</td><td>0.917</td><td>0.917</td><td>0.833</td><td class="hit">1.000</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="hint reveal" style="margin-top:10px;">See <code class="mono">docs/FACILITATOR.md</code> for the full numbers, including
+          an honest note on the one query where techniques don't compose automatically.</p>
+        <div class="reveal d4" style="margin-top:16px; display:flex; gap:12px; flex-wrap:wrap;">
+          <button class="btn primary" onclick="goTo('hero')">↑ Back to start</button>
+        </div>
+        <p class="reveal" style="margin-top:16px; color:var(--text-faint); font-size:13px;">
+          Now go build it — <code class="mono">docs/LAB_GUIDE.md</code> and <code class="mono">labs/</code> are
+          where the four pipelines above actually get written, by you.
+        </p>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<style>
+/* ---- devcontainer anatomy ---- */
+.jkey{background:var(--accent-soft); color:var(--accent); padding:1px 4px; border-radius:5px; cursor:pointer; border-bottom:1px dashed var(--accent);}
+.jkey:hover{filter:brightness(1.1);}
+
+/* ---- lifecycle diagram ---- */
+.lifecycle{display:flex; align-items:center; margin-top:22px; flex-wrap:wrap; gap:6px;}
+.life-node{flex:1; min-width:130px; text-align:center; opacity:.4; transition:opacity .3s;}
+.life-node.active, .life-node.done{opacity:1;}
+.life-dot{
+  width:34px; height:34px; border-radius:50%; background:var(--panel-2); border:2px solid var(--border);
+  display:flex; align-items:center; justify-content:center; margin:0 auto 8px; font-family:var(--mono);
+  font-weight:700; font-size:13px; color:var(--text-dim); transition:all .3s;
+}
+.life-node.active .life-dot{border-color:var(--accent); background:var(--accent); color:var(--accent-ink);}
+.life-node.done .life-dot{border-color:var(--success); background:var(--success-soft); color:var(--success);}
+.life-label{font-weight:700; font-size:13px;}
+.life-sub{font-size:11.5px; color:var(--text-faint); margin-top:2px;}
+.life-arrow{flex:.4; min-width:24px; height:2px; background:var(--border); position:relative; top:-18px;}
+
+/* ---- simple RAG pipeline ---- */
+.rag-pipeline{display:flex; align-items:center; margin-top:20px; flex-wrap:wrap; gap:4px; justify-content:center;}
+.rag-node{opacity:.35; transition:opacity .25s, transform .25s;}
+.rag-node.active{opacity:1; transform:scale(1.08);}
+.rag-box{
+  width:82px; height:64px; border-radius:12px; background:var(--panel-2); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center; text-align:center; font-size:11px; font-weight:700;
+  line-height:1.4; padding:4px;
+}
+.rag-node.active .rag-box{border-color:var(--accent); background:var(--accent-soft); color:var(--accent);}
+.rag-wire{width:22px; height:2px; background:var(--border);}
+
+/* ---- ranked lists ---- */
+.rank-list{display:flex; flex-direction:column; gap:8px;}
+.rank-item{
+  display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:10px; border:1px solid var(--border);
+  background:var(--panel); opacity:0; transform:translateX(-10px); transition:opacity .4s, transform .4s;
+}
+.rank-item.show{opacity:1; transform:translateX(0);}
+.rank-item .rk{font-family:var(--mono); font-weight:700; color:var(--text-faint); width:20px;}
+.rank-item .rname{flex:1; font-weight:600;}
+.rank-item .rscore{font-family:var(--mono); font-size:12.5px; color:var(--text-faint);}
+.rank-item.wrong{border-color:var(--danger); background:var(--danger-soft);}
+.rank-item.wrong .rk{color:var(--danger);}
+.rank-item.correct{border-color:var(--success); background:var(--success-soft);}
+.rank-item.correct .rk{color:var(--success);}
+
+.mini-rank{display:flex; flex-direction:column; gap:6px;}
+.mini-row{padding:9px 12px; border-radius:9px; border:1px solid var(--border); font-size:13px; display:flex; justify-content:space-between; gap:8px;}
+.mini-row.good{border-color:var(--success); background:var(--success-soft);}
+.mini-row.bad{border-color:var(--danger); background:var(--danger-soft);}
+.mini-row .mono{color:var(--text-faint);}
+
+/* ---- query-opt tabs ---- */
+.tabs{display:flex; flex-wrap:wrap; gap:8px;}
+.qo-tab{
+  border:1px solid var(--border); background:var(--panel); color:var(--text-dim); padding:9px 14px;
+  border-radius:999px; font-size:12.5px; font-weight:600; cursor:pointer; font-family:var(--sans);
+}
+.qo-tab.active{background:var(--accent); border-color:var(--accent); color:var(--accent-ink);}
+.qo-panel{margin-top:16px; min-height:160px;}
+.qo-panel .qtag{display:inline-block; margin-bottom:10px;}
+
+/* ---- rank compare (before/after) ---- */
+.rank-compare{display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+@media (max-width:800px){.rank-compare{grid-template-columns:1fr;}}
+.rank-compare .col-title{font-weight:700; margin-bottom:10px; font-size:13px;}
+
+/* ---- bi/cross encoder diagram ---- */
+.be-diagram, .ce-diagram{display:flex; flex-direction:column; align-items:center; gap:8px; margin:16px 0; text-align:center;}
+.be-box{background:var(--panel-2); border:1px solid var(--border); border-radius:9px; padding:8px 16px; font-weight:700; font-size:13px;}
+.be-enc{background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); border-radius:9px; padding:8px 14px; font-weight:700; font-size:12.5px;}
+.be-vec{font-family:var(--mono); font-size:11.5px; background:var(--panel-2); border:1px dashed var(--border); border-radius:9px; padding:6px 12px;}
+.be-compare{font-family:var(--mono); font-size:11px; color:var(--text-faint);}
+.be-arrow-down::after{content:"↓"; color:var(--text-faint); font-size:16px;}
+.be-arrow-up::after{content:"↑"; color:var(--text-faint); font-size:16px;}
+.ce-pair{display:flex; align-items:center; gap:10px;}
+.ce-plus{font-weight:700; color:var(--text-faint);}
+
+/* ---- rerank compare ---- */
+.rerank-compare{display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+@media (max-width:800px){.rerank-compare{grid-template-columns:1fr;}}
+.bar-row{margin:10px 0;}
+.bar-label{font-size:12.5px; display:flex; justify-content:space-between; margin-bottom:4px;}
+.bar-track{height:14px; border-radius:7px; background:var(--panel-2); overflow:hidden; position:relative;}
+.bar-fill{height:100%; width:0%; border-radius:7px; transition:width .8s cubic-bezier(.2,.8,.2,1); background:var(--text-faint);}
+.bar-fill.good{background:var(--success);}
+.bar-fill.bad{background:var(--danger);}
+
+/* ---- mrr summary table ---- */
+.mrr-table{width:100%; border-collapse:collapse; font-size:14px;}
+.mrr-table th, .mrr-table td{padding:10px 14px; text-align:center; border-bottom:1px solid var(--border);}
+.mrr-table th{font-family:var(--mono); font-size:11.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:.5px;}
+.mrr-table td:first-child, .mrr-table th:first-child{text-align:left;}
+.mrr-table td.hit{color:var(--success); font-weight:800; background:var(--success-soft); border-radius:8px;}
+
+/* ---- spec hub-and-spoke diagram ---- */
+.spec-diagram{display:flex; flex-direction:column; align-items:center; margin:22px 0 26px;}
+.spec-hub{
+  font-family:var(--mono); font-size:13px; font-weight:700; background:var(--panel-2);
+  border:1px solid var(--border); border-radius:12px; padding:14px 22px; text-align:center;
+}
+.spec-lines{width:2px; height:26px; background:var(--border); margin:0 auto;}
+.spec-spokes{display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin-top:0; position:relative;}
+.spec-spokes::before{
+  content:""; position:absolute; top:-26px; left:12%; right:12%; height:2px; background:var(--border);
+}
+.spec-node{
+  flex:1; min-width:170px; text-align:center; background:var(--panel); border:1px solid var(--border);
+  border-radius:12px; padding:14px 16px; font-weight:700; font-size:13.5px; position:relative;
+}
+.spec-node::before{content:""; position:absolute; top:-26px; left:50%; width:2px; height:26px; background:var(--border);}
+.spec-node.accent{border-color:var(--accent); background:var(--accent-soft); color:var(--accent);}
+@media (max-width:800px){ .spec-spokes::before{display:none;} .spec-node::before{display:none;} }
+</style>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- theme ---------------- */
+  function applyTheme(t){
+    document.documentElement.setAttribute('data-theme', t);
+    try{ localStorage.setItem('ragdeck-theme', t); }catch(e){}
+  }
+  function currentTheme(){
+    try{ return localStorage.getItem('ragdeck-theme'); }catch(e){ return null; }
+  }
+  var startTheme = currentTheme() || 'dark';
+  applyTheme(startTheme);
+  function toggleTheme(){
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  }
+  document.getElementById('themeBtn').addEventListener('click', toggleTheme);
+  var mb = document.getElementById('themeBtnMobile');
+  if(mb) mb.addEventListener('click', toggleTheme);
+
+  /* ---------------- navigation ---------------- */
+  var main = document.getElementById('main');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.section'));
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('.navlist a'));
+
+  window.goTo = function(id){
+    var el = document.getElementById(id);
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  };
+  navLinks.forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      goTo(a.getAttribute('data-target'));
+    });
+  });
+
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        var id = entry.target.id;
+        navLinks.forEach(function(a){
+          a.classList.toggle('active', a.getAttribute('data-target') === id);
+        });
+        var idx = sections.indexOf(entry.target);
+        var pct = sections.length > 1 ? (idx/(sections.length-1))*100 : 0;
+        document.getElementById('progressFill').style.width = pct + '%';
+        // trigger any per-section entrance animation once
+        if(entry.target.dataset.armed !== '1'){
+          entry.target.dataset.armed = '1';
+          onSectionArmed(id);
+        }
+      }
+    });
+  }, {root: main, threshold:0.45});
+  sections.forEach(function(s){ io.observe(s); });
+
+  document.querySelectorAll('.reveal').forEach(function(el){
+    var obs = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting) entry.target.classList.add('in-view');
+      });
+    }, {root: main, threshold:0.15});
+    obs.observe(el);
+  });
+
+  window.addEventListener('keydown', function(e){
+    if(e.target.tagName === 'INPUT') return;
+    var idx = sections.findIndex(function(s){
+      var r = s.getBoundingClientRect();
+      return r.top >= -10 && r.top < window.innerHeight * 0.6;
+    });
+    if(idx === -1) idx = 0;
+    if(e.key === 'ArrowDown' || e.key === 'PageDown'){ e.preventDefault(); goTo((sections[Math.min(idx+1, sections.length-1)]||sections[idx]).id); }
+    else if(e.key === 'ArrowUp' || e.key === 'PageUp'){ e.preventDefault(); goTo((sections[Math.max(idx-1,0)]).id); }
+    else if(/^[0-6]$/.test(e.key)){
+      var topLevel = ['hero','codespaces','simplerag','queryopt','hybrid','rerank','wrap'];
+      var target = topLevel[parseInt(e.key,10)];
+      if(target) goTo(target);
+    }
+  });
+
+  function onSectionArmed(id){
+    if(id === 'simplerag-fail') setTimeout(runFailDemo, 250);
+    if(id === 'queryopt-result') setTimeout(runFixDemo, 250);
+    if(id === 'rerank-result') setTimeout(runRerankDemo, 250);
+  }
+
+  /* ---------------- devcontainer anatomy explainer ---------------- */
+  document.querySelectorAll('.jkey').forEach(function(k){
+    k.addEventListener('click', function(){
+      var panel = document.getElementById('explainPanel');
+      panel.innerHTML =
+        '<span class="tag good" style="align-self:flex-start;">' + k.dataset.title + '</span>' +
+        '<p style="margin:10px 0 0; color:var(--text);">' + k.dataset.desc + '</p>';
+    });
+  });
+
+  /* ---------------- lifecycle player ---------------- */
+  (function(){
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('#lifecycleRow .life-node'));
+    var caption = document.getElementById('lifecycleCaption');
+    var captions = [
+      'Pulling mcr.microsoft.com/devcontainers/python:3.12 …',
+      'Layering the Ollama feature on top …',
+      'Running postCreate.sh: pip install, model pull, cache warm-up …',
+      'Ready — editor open, extensions loaded, port 11434 forwarded.'
+    ];
+    var timer = null, step = -1;
+    function render(){
+      nodes.forEach(function(n, i){
+        n.classList.toggle('active', i === step);
+        n.classList.toggle('done', i < step);
+      });
+      caption.textContent = step >= 0 ? captions[step] : 'Press play to step through it.';
+    }
+    document.getElementById('lifecyclePlay').addEventListener('click', function(){
+      clearInterval(timer); step = -1; render();
+      timer = setInterval(function(){
+        step++;
+        if(step >= nodes.length){ clearInterval(timer); return; }
+        render();
+      }, 900);
+    });
+  })();
+
+  /* ---------------- simple RAG pipeline player ---------------- */
+  (function(){
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('#ragPipeline .rag-node'));
+    var caption = document.getElementById('ragCaption');
+    var out = document.getElementById('ragOutput');
+    var captions = [
+      '"What is the bereavement leave policy?"',
+      'Turn the query into a 384-dim vector …',
+      'Compare against every chunk vector by cosine similarity …',
+      'Take the top 5 closest chunks …',
+      'Stuff them into a prompt template …',
+      'Ask the model to answer using only that context …',
+      'Done.'
+    ];
+    var timer = null, step = -1;
+    document.getElementById('ragPlay').addEventListener('click', function(){
+      clearInterval(timer); step = -1; out.innerHTML = '';
+      timer = setInterval(function(){
+        step++;
+        nodes.forEach(function(n,i){ n.classList.toggle('active', i===step); });
+        caption.textContent = step < captions.length ? captions[step] : '';
+        if(step >= nodes.length-1){
+          clearInterval(timer);
+          out.innerHTML = '<div class="card" style="padding:12px; margin-top:6px;"><span class="tag good">answer</span><p style="margin:8px 0 0; color:var(--text);">"Employees are entitled to five paid days of bereavement leave following the death of an immediate family member…"</p></div>';
+        }
+      }, 750);
+    });
+  })();
+
+  /* ---------------- fail demo: OTIF, naive dense search ---------------- */
+  function runFailDemo(){
+    var list = document.getElementById('failRankList');
+    var data = [
+      {rank:1, name:'Company Glossary of Terms and Acronyms', score:'0.5065', cls:'wrong'},
+      {rank:2, name:'Return Merchandise Authorization (RMA) Process', score:'0.4873', cls:'wrong'},
+      {rank:3, name:'On-Time-In-Full Exception Filing Process', score:'0.4850', cls:'correct', note:' ← the actual answer'}
+    ];
+    list.innerHTML = data.map(function(d){
+      return '<div class="rank-item '+d.cls+'"><span class="rk">'+d.rank+'</span>' +
+        '<span class="rname">'+d.name+(d.note||'')+'</span>' +
+        '<span class="rscore">'+d.score+'</span></div>';
+    }).join('');
+    var items = list.querySelectorAll('.rank-item');
+    items.forEach(function(el, i){ setTimeout(function(){ el.classList.add('show'); }, i*280); });
+  }
+  document.getElementById('failPlay').addEventListener('click', runFailDemo);
+
+  /* ---------------- query optimization technique tabs ---------------- */
+  var qoData = {
+    expand: {
+      tag: '<span class="tag good">✓ verified in this repo</span>',
+      html: '<h3 class="title" style="margin-top:0;">Acronym / Glossary Expansion</h3>' +
+        '<p>Look up any acronym the query uses in a small domain glossary, and add a variant that spells it out — cheap, deterministic, no LLM call required.</p>' +
+        '<div class="codeline">query:  "…process if a delivery isn\'t <span class="s">OTIF</span>?"<br>+variant: "…process if a delivery isn\'t <span class="s">OTIF (on-time-in-full)</span>?"</div>' +
+        '<p class="hint">Result: the document ranked 3rd moves to 1st — see the next slide.</p>'
+    },
+    rewrite: {
+      tag: '<span class="tag warn">illustrative — common in production chat systems</span>',
+      html: '<h3 class="title" style="margin-top:0;">Query Rewriting / Reformulation</h3>' +
+        '<p>In a multi-turn chat, a follow-up question is often meaningless on its own. An LLM rewrites it into a standalone question before retrieval ever runs.</p>' +
+        '<div class="codeline"><span class="cm">// turn 1:</span> "What\'s the sick leave policy?"<br><span class="cm">// turn 2 (as typed):</span> "<span class="m">What about for warehouse staff?</span>"<br><span class="cm">// rewritten before retrieval:</span> "<span class="s">What is the sick leave policy for warehouse staff?</span>"</div>'
+    },
+    decompose: {
+      tag: '<span class="tag good">✓ verified in this repo</span>',
+      html: '<h3 class="title" style="margin-top:0;">Sub-question Decomposition</h3>' +
+        '<p>A compound question usually needs two different documents. Split on connectives, search each half separately, then merge the results.</p>' +
+        '<div class="codeline">"For a non-employee who needs remote network access,<br>&nbsp;&nbsp;what software do they install, <span class="k">and</span> whose sign-off do they need first?"<br><span class="cm">splits into →</span><br>1. "…what software do they install"  <span class="cm">(→ VPN policy doc)</span><br>2. "…whose sign-off do they need first"  <span class="cm">(→ access-approval doc)</span></div>'
+    },
+    multi: {
+      tag: '<span class="tag warn">illustrative — the technique behind "RAG-Fusion"</span>',
+      html: '<h3 class="title" style="margin-top:0;">Multi-Query Generation</h3>' +
+        '<p>Ask the LLM to generate several differently-phrased versions of the same question, retrieve for each one independently, then fuse all the rankings — often with the exact Reciprocal Rank Fusion formula from Section 4.</p>' +
+        '<div class="codeline">"How do I get reimbursed for travel?" →<br>&nbsp;&nbsp;"What is the expense reimbursement process?"<br>&nbsp;&nbsp;"How do I submit a travel expense claim?"<br>&nbsp;&nbsp;"Where do I file for travel cost reimbursement?"</div>'
+    },
+    stepback: {
+      tag: '<span class="tag warn">illustrative — from Google DeepMind\'s "Take a Step Back" technique</span>',
+      html: '<h3 class="title" style="margin-top:0;">Step-Back Prompting</h3>' +
+        '<p>Before answering a narrow question, ask a broader one first, retrieve context for <em>that</em>, and use it to ground the specific answer — helpful when the narrow question alone is too specific to match a document\'s framing.</p>' +
+        '<div class="codeline">specific: "Does the Gold SLA tier\'s named account manager<br>&nbsp;&nbsp;&nbsp;&nbsp;get involved in shipment delays?"<br>step-back: "<span class="s">What does the Gold SLA tier include?</span>"</div>'
+    },
+    hyde: {
+      tag: '<span class="tag good">✓ verified in this repo</span>',
+      html: '<h3 class="title" style="margin-top:0;">HyDE — Hypothetical Document Embeddings</h3>' +
+        '<p>Ask the LLM to <em>write</em> a plausible answer, then embed and search using <strong>that fabricated answer\'s</strong> text — not the question. A confident guess often lands closer to the real document\'s vocabulary than the bare question does.</p>' +
+        '<div class="codeline"><span class="cm">// real output from this repo\'s offline HyDE template:</span><br>question: "What\'s the process if a delivery isn\'t OTIF?"<br>hypothetical: "<span class="s">According to internal policy, what\'s the process<br>&nbsp;&nbsp;if a delivery isn\'t otif is handled as documented below.</span>"</div>'
+    }
+  };
+  (function(){
+    var tabs = Array.prototype.slice.call(document.querySelectorAll('.qo-tab'));
+    var panel = document.getElementById('qoPanel');
+    function render(key){
+      tabs.forEach(function(t){ t.classList.toggle('active', t.dataset.tab === key); });
+      var d = qoData[key];
+      panel.innerHTML = '<div class="qtag">'+d.tag+'</div>' + d.html;
+    }
+    tabs.forEach(function(t){ t.addEventListener('click', function(){ render(t.dataset.tab); }); });
+    render('expand');
+  })();
+
+  /* ---------------- fix demo: OTIF before/after ---------------- */
+  function runFixDemo(){
+    var el = document.getElementById('fixCompare');
+    el.innerHTML =
+      '<div><div class="col-title">Before — naive query <span class="tag bad">rank 3</span></div>' +
+        '<div class="mini-rank">' +
+          '<div class="mini-row bad">1. Company Glossary <span class="mono">0.5065</span></div>' +
+          '<div class="mini-row bad">2. RMA Process <span class="mono">0.4873</span></div>' +
+          '<div class="mini-row" style="border-color:var(--text-faint);">3. OTIF Exception Filing <span class="mono">0.4850</span></div>' +
+        '</div></div>' +
+      '<div><div class="col-title">After — glossary-expanded query <span class="tag good">rank 1</span></div>' +
+        '<div class="mini-rank">' +
+          '<div class="mini-row good">1. OTIF Exception Filing <span class="mono">0.5409</span> ✓</div>' +
+          '<div class="mini-row">2. Company Glossary <span class="mono">0.5400</span></div>' +
+          '<div class="mini-row">3. RMA Process <span class="mono">0.5139</span></div>' +
+        '</div></div>';
+  }
+  document.getElementById('fixPlay').addEventListener('click', runFixDemo);
+
+  /* ---------------- RRF live calculator ---------------- */
+  var rrfDense = ['ops-error-codes-billing','ops-error-codes-manifest','ops-error-codes-dispatch','ops-incident-response','eng-postmortem-process'];
+  var rrfBm25  = ['ops-error-codes-manifest','ops-error-codes-billing','ops-error-codes-dispatch','ops-warehouse-safety','company-glossary'];
+  var rrfNames = {
+    'ops-error-codes-billing':'Billing Error Codes','ops-error-codes-manifest':'Manifest Sync Error Codes',
+    'ops-error-codes-dispatch':'Dispatch Error Codes','ops-incident-response':'Incident Response',
+    'eng-postmortem-process':'Postmortem Process','ops-warehouse-safety':'Warehouse Safety','company-glossary':'Company Glossary'
+  };
+  var CORRECT_DOC = 'ops-error-codes-manifest';
+  function computeRRF(k){
+    // This calculator fuses at DOCUMENT level for legibility (one row per
+    // doc). The real lab code fuses at CHUNK level (a doc can contribute
+    // more than one candidate), which is finer-grained than this demo and
+    // is what actually breaks the manifest-vs-billing tie in the verified
+    // result (0.032266 vs 0.032258). At the document level, these two
+    // documents swap rank 1↔2 between dense and BM25 — a genuine
+    // mathematical tie at *every* value of k, not a bug. Ties are broken
+    // here by BM25 rank, which is also, honestly, how this exact pair
+    // happens to resolve in the real chunk-level computation.
+    var scores = {};
+    [rrfDense, rrfBm25].forEach(function(list){
+      list.forEach(function(id, i){ scores[id] = (scores[id]||0) + 1/(k + i + 1); });
+    });
+    var ids = Object.keys(scores);
+    ids.sort(function(a,b){
+      var diff = scores[b] - scores[a];
+      if (Math.abs(diff) > 1e-9) return diff;
+      var ra = rrfBm25.indexOf(a); if(ra === -1) ra = 999;
+      var rb = rrfBm25.indexOf(b); if(rb === -1) rb = 999;
+      return ra - rb;
+    });
+    return ids.map(function(id){ return {id:id, score:scores[id]}; });
+  }
+  function renderRankCol(title, list, isFused){
+    var rows = list.map(function(item, i){
+      var id = isFused ? item.id : item;
+      var scoreTxt = isFused ? item.score.toFixed(4) : '';
+      var correct = id === CORRECT_DOC;
+      return '<div class="mini-row'+(correct?' good':'')+'">'+(i+1)+'. '+rrfNames[id]+(correct?' ✓':'')+' <span class="mono">'+scoreTxt+'</span></div>';
+    }).join('');
+    return '<div><div class="col-title">'+title+'</div><div class="mini-rank">'+rows+'</div></div>';
+  }
+  function renderRRF(){
+    var k = parseInt(document.getElementById('kRange').value, 10);
+    document.getElementById('kVal').textContent = k;
+    var fused = computeRRF(k);
+    document.getElementById('rrfGrid').innerHTML =
+      renderRankCol('Dense ranking', rrfDense, false) +
+      renderRankCol('BM25 ranking', rrfBm25, false) +
+      renderRankCol('Fused (RRF, k='+k+')', fused, true);
+  }
+  document.getElementById('kRange').addEventListener('input', renderRRF);
+  renderRRF();
+
+  /* ---------------- rerank before/after bars ---------------- */
+  function runRerankDemo(){
+    var el = document.getElementById('rerankCompare');
+    el.innerHTML =
+      '<div><div class="col-title">Hybrid retrieval (before) <span class="tag bad">wrong doc on top, by a hair</span></div>' +
+        barRow('PTO Accrual (wrong)', 0.0320, 'bad', 32) +
+        barRow('Parental Leave (correct)', 0.0315, '', 31.5) +
+        barRow('Bereavement Leave', 0.0310, '', 31) +
+      '</div>' +
+      '<div><div class="col-title">After reranking <span class="tag good">decisive, correct</span></div>' +
+        barRow('Parental Leave (correct)', 2.2911, 'good', 100) +
+        barRow('PTO Accrual', -4.1802, '', 8) +
+        barRow('Bereavement Leave', -5.3942, '', 4);
+    el.innerHTML = el.innerHTML; // no-op, ensures DOM committed before width transition
+    requestAnimationFrame(function(){
+      setTimeout(function(){
+        document.querySelectorAll('#rerankCompare .bar-fill').forEach(function(b){
+          b.style.width = b.dataset.pct + '%';
+        });
+      }, 60);
+    });
+  }
+  function barRow(label, score, cls, pct){
+    return '<div class="bar-row"><div class="bar-label"><span>'+label+'</span><span class="mono">'+score.toFixed(4)+'</span></div>' +
+      '<div class="bar-track"><div class="bar-fill '+cls+'" data-pct="'+pct+'" style="width:0%;"></div></div></div>';
+  }
+  document.getElementById('rerankPlay').addEventListener('click', runRerankDemo);
+
+  /* ---------------- codespaces cost calculator ---------------- */
+  var costState = { cores:2, plan:'free', hours:40, gb:10 };
+  var PLAN_QUOTA = { free:{hrs:120, gb:15}, pro:{hrs:180, gb:20}, team:{hrs:0, gb:0} };
+  function renderCost(){
+    var quota = PLAN_QUOTA[costState.plan];
+    var coreHoursUsed = costState.hours * costState.cores;
+    var billableCoreHours = Math.max(0, coreHoursUsed - quota.hrs);
+    var computeCost = billableCoreHours * 0.09;
+    var billableGb = Math.max(0, costState.gb - quota.gb);
+    var storageCost = billableGb * 0.07;
+    var total = computeCost + storageCost;
+    document.getElementById('costOut').innerHTML =
+      '<span class="cm">machine</span>       '+costState.cores+'-core  ('+ (costState.cores*0.09).toFixed(2) +'/hr)\n' +
+      '<span class="cm">core-hours used</span>  '+coreHoursUsed+'  <span class="cm">(free quota: '+quota.hrs+')</span>\n' +
+      '<span class="cm">billable core-hrs</span> '+billableCoreHours+'\n' +
+      '<span class="cm">compute cost</span>    $'+computeCost.toFixed(2)+'\n' +
+      '<span class="cm">storage used</span>    '+costState.gb+' GB  <span class="cm">(free quota: '+quota.gb+' GB)</span>\n' +
+      '<span class="cm">storage cost</span>    $'+storageCost.toFixed(2)+'\n' +
+      '<span class="m">total / month</span>   <strong style="font-size:16px;">$'+total.toFixed(2)+'</strong>';
+    document.getElementById('costNote').textContent = total === 0
+      ? "Fully covered by your plan's free monthly quota."
+      : 'Formula: max(0, hours×cores − free core-hours)×$0.09 + max(0, GB − free GB)×$0.07';
+  }
+  document.getElementById('coreToggle').addEventListener('click', function(e){
+    if(e.target.tagName !== 'BUTTON') return;
+    Array.prototype.forEach.call(this.children, function(b){ b.classList.remove('active'); });
+    e.target.classList.add('active');
+    costState.cores = parseInt(e.target.dataset.cores, 10);
+    renderCost();
+  });
+  document.getElementById('planToggle').addEventListener('click', function(e){
+    if(e.target.tagName !== 'BUTTON') return;
+    Array.prototype.forEach.call(this.children, function(b){ b.classList.remove('active'); });
+    e.target.classList.add('active');
+    costState.plan = e.target.dataset.plan;
+    renderCost();
+  });
+  document.getElementById('hoursRange').addEventListener('input', function(){
+    costState.hours = parseInt(this.value, 10);
+    document.getElementById('hoursVal').textContent = costState.hours;
+    renderCost();
+  });
+  document.getElementById('gbRange').addEventListener('input', function(){
+    costState.gb = parseInt(this.value, 10);
+    document.getElementById('gbVal').textContent = costState.gb;
+    renderCost();
+  });
+  renderCost();
+
+})();
+</script>
+</body>
+</html>

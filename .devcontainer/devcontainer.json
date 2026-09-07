@@ -1,0 +1,35 @@
+{
+  "name": "advanced-rag-lab",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "hostRequirements": {
+    "cpus": 4
+  },
+  "onCreateCommand": "bash .devcontainer/install-ollama.sh",
+  "updateContentCommand": "bash .devcontainer/updateContent.sh",
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "postStartCommand": "bash .devcontainer/start-ollama.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "ms-python.python",
+        "charliermarsh.ruff"
+      ],
+      "settings": {
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["tests"]
+      }
+    }
+  },
+  "remoteEnv": {
+    "KMP_DUPLICATE_LIB_OK": "TRUE"
+  },
+  "forwardPorts": [11434],
+  "portsAttributes": {
+    "11434": {
+      "label": "Ollama",
+      "onAutoForward": "silent"
+    }
+  }
+}

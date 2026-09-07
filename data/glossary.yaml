@@ -1,0 +1,25 @@
+# Acronym -> plain-English expansion, for the fictional freight company
+# ("Northbridge Freight") this lab's corpus belongs to.
+#
+# Lab 2 looks acronyms up here to expand a query before embedding it. Some
+# of these acronyms are used in the corpus itself (so expansion isn't
+# needed); others — deliberately — are used in *queries* but the matching
+# document spells the term out in full, which is exactly the vocabulary gap
+# query expansion exists to close.
+
+OTIF: on-time-in-full
+POD: proof of delivery
+ETA: estimated time of arrival
+SLA: service level agreement
+KPI: key performance indicator
+LTL: less than truckload
+FTL: full truckload
+EDI: electronic data interchange
+WMS: warehouse management system
+TMS: transportation management system
+RMA: return merchandise authorization
+MFA: multi-factor authentication
+SSO: single sign-on
+VPN: virtual private network
+COI: certificate of insurance
+PTO: paid time off
