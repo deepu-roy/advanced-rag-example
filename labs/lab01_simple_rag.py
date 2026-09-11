@@ -115,4 +115,8 @@ if __name__ == "__main__":
     import sys
 
     query = " ".join(sys.argv[1:]) or "What is the bereavement leave policy?"
-    print(answer(query))
+    print("Retrieved:")
+    for hit in retrieve(query, k=5):
+        print(f"  [{hit.score:.3f}] {hit.chunk.doc_title}")
+    print("\nAnswer:")
+    print(answer(query, k=5))

@@ -50,7 +50,7 @@ import re
 
 from labs import lab01_simple_rag as lab01  # noqa: F401 - used once you implement retrieve()
 from ragkit.glossary import find_acronyms, load_glossary  # noqa: F401 - used in expand_query()
-from ragkit.llm import get_llm  # noqa: F401 - used in expand_query() for HyDE
+from ragkit.llm import answer_from_hits, get_llm  # noqa: F401 - get_llm is used for HyDE
 from ragkit.types import Hit
 
 _glossary = load_glossary()
@@ -109,6 +109,9 @@ if __name__ == "__main__":
     print("Variants:")
     for v in expand_query(query):
         print(f"  - {v}")
-    print()
-    for hit in retrieve(query, k=3):
+    print("\nRetrieved:")
+    hits = retrieve(query, k=3)
+    for hit in hits:
         print(f"  [{hit.score:.3f}] {hit.chunk.doc_title}")
+    print("\nAnswer:")
+    print(answer_from_hits(query, hits))

@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 
 from ragkit.glossary import find_acronyms, load_glossary
-from ragkit.llm import get_llm
+from ragkit.llm import answer_from_hits, get_llm
 from ragkit.types import Hit
 from solutions import lab01_simple_rag as lab01
 
@@ -78,10 +78,13 @@ def retrieve(query: str, k: int = 5) -> list[Hit]:
 if __name__ == "__main__":
     import sys
 
-    query = " ".join(sys.argv[1:]) or "How long to file an OTIF exception?"
+    query = " ".join(sys.argv[1:]) or "What's the process if a delivery isn't OTIF?"
     print("Variants:")
     for v in expand_query(query):
         print(f"  - {v}")
-    print()
-    for hit in retrieve(query, k=3):
+    print("\nRetrieved:")
+    hits = retrieve(query, k=3)
+    for hit in hits:
         print(f"  [{hit.score:.3f}] {hit.chunk.doc_title}")
+    print("\nAnswer:")
+    print(answer_from_hits(query, hits))

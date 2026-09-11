@@ -25,6 +25,8 @@ import os
 import re
 from abc import ABC, abstractmethod
 
+from ragkit.types import Hit
+
 DEFAULT_OLLAMA_MODEL = "qwen2.5:1.5b-instruct"
 
 # get_llm() is called once per query in some labs; cache providers per
@@ -128,3 +130,25 @@ def get_llm() -> LLMProvider:
 
     _provider_cache[backend] = provider
     return provider
+
+
+_ANSWER_PROMPT = """Answer the question using ONLY the context below. If the
+context doesn't contain the answer, say so plainly.
+
+Context:
+{context}
+
+Question: {question}
+Answer:"""
+
+
+def answer_from_hits(query: str, hits: list[Hit]) -> str:
+    """Generate an answer from already-retrieved hits.
+
+    Labs 2-4 only change *retrieval*, so they share this generation step
+    instead of each reimplementing lab 1's answer().
+    """
+    if not hits:
+        return "(no context retrieved)"
+    context = "\n\n".join(f"[{hit.chunk.doc_title}]\n{hit.chunk.text}" for hit in hits)
+    return get_llm().complete(_ANSWER_PROMPT.format(context=context, question=query))

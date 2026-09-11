@@ -41,8 +41,11 @@ class EmbeddingModel:
         return self._model
 
     @property
-    def dimension(self) -> int:
-        return self.model.get_sentence_embedding_dimension()
+    def dimension(self) -> int:        
+        get_dim = getattr(self.model, "get_embedding_dimension", None)
+        if get_dim is None:
+            get_dim = self.model.get_sentence_embedding_dimension
+        return get_dim()
 
     def encode(self, texts: list[str], use_cache: bool = True) -> np.ndarray:
         """Return an (n, dim) float32 array of L2-normalized embeddings, one

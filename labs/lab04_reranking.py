@@ -31,6 +31,7 @@ Everything you need:
 from __future__ import annotations
 
 from labs import lab03_hybrid_rrf as lab03  # noqa: F401 - used once you implement retrieve()
+from ragkit.llm import answer_from_hits
 from ragkit.reranker import CrossEncoderReranker
 from ragkit.types import Hit
 
@@ -60,5 +61,9 @@ if __name__ == "__main__":
     import sys
 
     query = " ".join(sys.argv[1:]) or "How much paid time off do new parents get after an adoption?"
-    for hit in retrieve(query, k=5):
+    print("Retrieved:")
+    hits = retrieve(query, k=5)
+    for hit in hits:
         print(f"  [{hit.score:7.3f}] {hit.chunk.doc_title}")
+    print("\nAnswer:")
+    print(answer_from_hits(query, hits))

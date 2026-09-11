@@ -12,6 +12,7 @@ from rank_bm25 import BM25Okapi
 
 from ragkit.chunking import chunk_documents
 from ragkit.corpus import load_corpus
+from ragkit.llm import answer_from_hits
 from ragkit.types import Chunk, Hit
 from solutions import lab01_simple_rag as lab01
 
@@ -79,6 +80,10 @@ def retrieve(query: str, k: int = 5) -> list[Hit]:
 if __name__ == "__main__":
     import sys
 
-    query = " ".join(sys.argv[1:]) or "What causes error E-4021?"
-    for hit in retrieve(query, k=5):
+    query = " ".join(sys.argv[1:]) or "What's the process if a delivery isn't OTIF?"
+    print("Retrieved:")
+    hits = retrieve(query, k=5)
+    for hit in hits:
         print(f"  [{hit.score:.4f}] {hit.chunk.doc_title}")
+    print("\nAnswer:")
+    print(answer_from_hits(query, hits))

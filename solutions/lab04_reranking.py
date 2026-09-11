@@ -5,6 +5,7 @@ the teaching comments and NotImplementedError stubs.
 """
 from __future__ import annotations
 
+from ragkit.llm import answer_from_hits
 from ragkit.reranker import CrossEncoderReranker
 from ragkit.types import Hit
 from solutions import lab03_hybrid_rrf as lab03
@@ -31,6 +32,10 @@ def retrieve(query: str, k: int = 5) -> list[Hit]:
 if __name__ == "__main__":
     import sys
 
-    query = " ".join(sys.argv[1:]) or "How much bereavement leave do I get?"
-    for hit in retrieve(query, k=5):
+    query = " ".join(sys.argv[1:]) or "How much paid time off do new parents get after an adoption?"
+    print("Retrieved:")
+    hits = retrieve(query, k=5)
+    for hit in hits:
         print(f"  [{hit.score:7.3f}] {hit.chunk.doc_title}")
+    print("\nAnswer:")
+    print(answer_from_hits(query, hits))
