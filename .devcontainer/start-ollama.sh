@@ -6,6 +6,13 @@ set -uo pipefail
 
 READY_URL="http://localhost:11434/api/tags"
 
+# Self-heal containers created before install-ollama.sh existed: onCreateCommand
+# never re-runs for an existing container, so install here instead of degrading.
+if ! command -v ollama >/dev/null 2>&1; then
+    echo "==> ollama not on PATH — installing it now"
+    bash "$(dirname "$0")/install-ollama.sh" || true
+fi
+
 if ! command -v ollama >/dev/null 2>&1; then
     echo "!! ollama not on PATH — labs fall back to RAG_LLM=offline."
     exit 0
